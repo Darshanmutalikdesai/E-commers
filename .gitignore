@@ -1,0 +1,13 @@
+node_modules/
+coverage/
+dist/
+uploads/products/
+.env
+.env.*
+!.env.example
+npm-debug.log*
+*.log
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

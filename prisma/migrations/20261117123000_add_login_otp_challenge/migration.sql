@@ -1,0 +1,1 @@
+ALTER TYPE "AuthChallengeType" ADD VALUE 'LOGIN_OTP';
