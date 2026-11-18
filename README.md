@@ -1,13 +1,12 @@
 # Single-seller e-commerce backend
 
-A Node.js/Express REST API foundation for a single-seller store. The initial phase provides configuration, PostgreSQL persistence through Prisma, database migrations, health checks, and Docker services. It intentionally has no vendor accounts or payment gateway integration.
+A Node.js/Express REST API foundation for a single-seller store. The initial phase provides configuration, PostgreSQL persistence through Prisma, database migrations, and health checks. It intentionally has no vendor accounts or payment gateway integration.
 
 ## Requirements
 
 - Node.js 22+ and a PostgreSQL database (Neon is supported)
-- Docker and Docker Compose (for containerized API deployment)
 
-## Quick start with Docker Compose
+## Quick start
 
 1. Copy `.env.example` to `.env`.
 2. Set `DATABASE_URL` to the connection string from your Neon dashboard. Use the pooled connection string for the API, retain Neon’s `sslmode=require` and other query parameters, and URL-encode special characters in the username or password.
@@ -20,15 +19,23 @@ A Node.js/Express REST API foundation for a single-seller store. The initial pha
    Run the command twice. Use one result for `JWT_ACCESS_SECRET` and another for `TOKEN_HASH_SECRET`. Keep these stable across API replicas; rotating `TOKEN_HASH_SECRET` invalidates outstanding refresh and email-challenge tokens.
 
 4. Configure all five `SMTP_*` settings to enable verification and sign-in-code emails. Port 465 uses implicit TLS; other ports use SMTP STARTTLS when available.
-5. Start the API and apply migrations:
+5. Install dependencies and apply the schema:
 
    ```sh
-   docker compose up --build -d
+   npm ci
+   npm run db:generate
+   npm run db:migrate
    ```
 
-6. Check the API at `http://localhost:3000/api/v1/health`. Database readiness is available at `http://localhost:3000/api/v1/health/ready`.
+6. Start the API:
 
-The Compose setup uses the `DATABASE_URL` from `.env` for both migrations and the API; it does not start a separate local PostgreSQL server. Keep `.env` private and never commit or share it.
+   ```sh
+   npm run dev
+   ```
+
+7. Check the API at `http://localhost:3000/api/v1/health`. Database readiness is available at `http://localhost:3000/api/v1/health/ready`.
+
+Keep `.env` private and never commit or share it.
 
 ## Local development
 
@@ -152,7 +159,7 @@ Create a draft product with `POST /api/v1/admin/products`, for example:
 
 Products support SKU, title/slug, descriptions, MRP/selling price and derived discount percentage, GST/HSN, dimensions/weight, JSON specifications, tags, category/brand, featured/bestseller flags, stock, related product IDs, and size/color variants. New products default to unpublished; set `isActive: true` to publish. Supplying `variants` in a product `PATCH` replaces the complete sellable variant list; variants referenced by order history are retained as inactive inventory records so historic orders can still be restocked. `newArrival=true` means created within the last 30 days. Product and brand deletion are soft deletes; category deletion is refused while products or child categories remain.
 
-New product images are stored locally under `uploads/products` in the project. Uploads accept one JPEG, PNG, WebP, AVIF, or GIF image per request, up to 10 MB, and each product can have up to 12 images. The file signature is checked before it is saved. The database stores a relative URL, local filename, format, size, alt text, ordering, and primary-image state. Public and admin product responses include the ordered `images` array. The upload directory is ignored by Git; back it up separately. Docker Compose keeps uploads in a persistent named volume.
+New product images are stored locally under `uploads/products` in the project. Uploads accept one JPEG, PNG, WebP, AVIF, or GIF image per request, up to 10 MB, and each product can have up to 12 images. The file signature is checked before it is saved. The database stores a relative URL, local filename, format, size, alt text, ordering, and primary-image state. Public and admin product responses include the ordered `images` array. The upload directory is ignored by Git; back it up separately.
 
 Existing images uploaded before this switch are preserved as their original URLs until deleted; they are not automatically copied to local storage. All new uploads and deletions of local images use the project’s local storage only.
 
@@ -221,12 +228,6 @@ npm run admin:create-super-admin
 ```
 
 The CLI prompts for the email/name and reads the password without echoing it. It refuses to create another bootstrap SUPER_ADMIN if one already exists. In a non-interactive environment, provide `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`, `BOOTSTRAP_ADMIN_FIRST_NAME`, and `BOOTSTRAP_ADMIN_LAST_NAME` through a secret manager, not command-line arguments.
-
-With Docker Compose, run the same CLI in an attached container after the migration service has completed:
-
-```sh
-docker compose run --rm api npm run admin:create-super-admin
-```
 
 Admin login and password recovery use `/api/v1/admin/auth/login`, `/forgot-password`, and `/reset-password`. Admin profile and session routes are under `/api/v1/admin/auth`. Authenticated admin APIs include:
 
