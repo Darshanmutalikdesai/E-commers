@@ -59,6 +59,43 @@ Keep `.env` private and never commit or share it.
 
 On a fresh local setup, replace both example secrets before running the API. The project `.env` is ignored by Git; keep its permissions private.
 
+## Deploying to Cloudflare Workers
+
+The API can run on Workers through Cloudflare's Node.js HTTP compatibility layer. Worker product image bytes are stored in the configured PostgreSQL database (Neon is supported); local Node.js development continues to store files under `uploads/products`.
+
+1. Use Node.js 22+, install dependencies, and authenticate Wrangler:
+
+   ```sh
+   npm ci
+   npx wrangler login
+   ```
+
+2. Set `CORS_ORIGIN` in `wrangler.jsonc` to the exact origin of your storefront. Apply the database migrations to the production PostgreSQL database, including the migration that adds image byte storage:
+
+   ```sh
+   npm run db:deploy
+   ```
+
+3. Add production secrets. Use your Neon pooled PostgreSQL connection string for `DATABASE_URL`, and use two separate random values for the token secrets:
+
+   ```sh
+   npx wrangler secret put DATABASE_URL
+   npx wrangler secret put JWT_ACCESS_SECRET
+   npx wrangler secret put TOKEN_HASH_SECRET
+   ```
+
+   To enable email, also set all five `SMTP_*` secrets with `wrangler secret put`.
+
+4. Deploy:
+
+   ```sh
+   npm run cf:deploy
+   ```
+
+For local Worker development, copy `.env` to the ignored `.dev.vars` file, then run `npm run cf:dev`. Do not commit either file. Create the initial SUPER_ADMIN by running `npm run admin:create-super-admin` locally with the production database configured after migrations have completed.
+
+**Workers Free has a 10 ms CPU limit per request.** This project uses bcrypt cost 12 for password operations; the Worker-compatible bcrypt implementation may exceed that limit. Test registration, sign-in, and password reset after deployment. Workers Free allows 100,000 requests per day. Uploaded image bytes count toward your PostgreSQL provider's storage limits.
+
 ## Environment
 
 | Variable | Required | Default | Description |
@@ -159,9 +196,9 @@ Create a draft product with `POST /api/v1/admin/products`, for example:
 
 Products support SKU, title/slug, descriptions, MRP/selling price and derived discount percentage, GST/HSN, dimensions/weight, JSON specifications, tags, category/brand, featured/bestseller flags, stock, related product IDs, and size/color variants. New products default to unpublished; set `isActive: true` to publish. Supplying `variants` in a product `PATCH` replaces the complete sellable variant list; variants referenced by order history are retained as inactive inventory records so historic orders can still be restocked. `newArrival=true` means created within the last 30 days. Product and brand deletion are soft deletes; category deletion is refused while products or child categories remain.
 
-New product images are stored locally under `uploads/products` in the project. Uploads accept one JPEG, PNG, WebP, AVIF, or GIF image per request, up to 10 MB, and each product can have up to 12 images. The file signature is checked before it is saved. The database stores a relative URL, local filename, format, size, alt text, ordering, and primary-image state. Public and admin product responses include the ordered `images` array. The upload directory is ignored by Git; back it up separately.
+New product images are stored locally under `uploads/products` when running the Node.js server, and as PostgreSQL `BYTEA` data when running on Workers. Uploads accept one JPEG, PNG, WebP, AVIF, or GIF image per request, up to 10 MB, and each product can have up to 12 images. The file signature is checked before it is saved. The database stores the image bytes, relative URL, local filename, format, size, alt text, ordering, and primary-image state. Public and admin product responses include the ordered `images` array. The local upload directory is ignored by Git; back it up separately.
 
-Existing images uploaded before this switch are preserved as their original URLs until deleted; they are not automatically copied to local storage. All new uploads and deletions of local images use the project’s local storage only.
+Existing images hosted at external URLs continue to use those URLs. Images previously stored only in local `uploads/products` files are not automatically copied to Neon; re-upload them through the admin image endpoint after deployment. New Node.js uploads remain local, while new Worker uploads store their bytes in Neon.
 
 Upload an image with an admin access token:
 

@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "my-ecommers-api",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-18",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "nodejs_compat_populate_process_env"
+  ],
+  "vars": {
+    "NODE_ENV": "production",
+    "CORS_ORIGIN": "http://localhost:3000"
+  },
+  "triggers": {
+    "crons": ["0 */6 * * *"]
+  }
+}

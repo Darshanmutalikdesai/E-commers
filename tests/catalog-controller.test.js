@@ -207,6 +207,14 @@ describe("catalog product management", () => {
   });
 
   it("persists an uploaded image as the primary image on the first upload", async () => {
+    const imageData = Buffer.from("stored image bytes");
+    mediaMock.uploadProductImage.mockResolvedValueOnce({
+      storagePath: "123e4567-e89b-42d3-a456-426614174000.jpg",
+      url: "/uploads/products/123e4567-e89b-42d3-a456-426614174000.jpg",
+      format: "jpg",
+      bytes: imageData.length,
+      data: imageData,
+    });
     const req = {
       file: { buffer: Buffer.from("image") },
       validated: {
@@ -227,6 +235,7 @@ describe("catalog product management", () => {
         altText: "Front view",
         sortOrder: 0,
         isPrimary: true,
+        data: imageData,
       }),
       select: expect.objectContaining({ url: true }),
     });

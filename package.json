@@ -15,12 +15,14 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "admin:create-super-admin": "node scripts/create-super-admin.js"
+    "admin:create-super-admin": "node scripts/create-super-admin.js",
+    "cf:dev": "npm run db:generate && wrangler dev",
+    "cf:deploy": "npm run db:generate && wrangler deploy"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
-    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
@@ -37,6 +39,7 @@
   "devDependencies": {
     "prisma": "^7.10.1",
     "supertest": "^7.1.4",
-    "vitest": "^4.1.12"
+    "vitest": "^4.1.12",
+    "wrangler": "^4.164.0"
   }
 }

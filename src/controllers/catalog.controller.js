@@ -728,6 +728,7 @@ export async function uploadProductImage(req, res) {
           height: uploaded.height,
           format: uploaded.format,
           bytes: uploaded.bytes,
+          ...(uploaded.data ? { data: uploaded.data } : {}),
         },
         select: productImageSelect,
       });
@@ -737,7 +738,7 @@ export async function uploadProductImage(req, res) {
     try {
       await deleteStoredProductImage(uploaded.storagePath);
     } catch (cleanupError) {
-      console.error("Could not clean up a locally uploaded product image after a database failure", {
+      console.error("Could not clean up an uploaded product image after a database failure", {
         storagePath: uploaded.storagePath,
         databaseError: error.message,
         error: cleanupError.message,
@@ -745,7 +746,7 @@ export async function uploadProductImage(req, res) {
       throw new AppError(
         500,
         "IMAGE_PERSISTENCE_AND_CLEANUP_FAILED",
-        "The image was saved locally, but its database record and local cleanup both failed",
+        "The image was stored, but its database record and storage cleanup both failed",
       );
     }
     throw error;

@@ -1,5 +1,5 @@
 import "dotenv/config";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { createInterface } from "node:readline/promises";
 import { z } from "zod";
 import { prisma } from "../src/config/database.js";

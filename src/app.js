@@ -3,6 +3,7 @@ import express from "express";
 import helmet from "helmet";
 import { corsOrigins } from "./config/env.js";
 import { productImageDirectory } from "./config/local-storage.js";
+import { getStoredProductImage } from "./services/media.service.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { notFound } from "./middleware/not-found.js";
 import adminRoutes from "./routes/admin.routes.js";
@@ -21,6 +22,21 @@ app.use(helmet());
 app.use(cors({ origin: corsOrigins, credentials: true }));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: false, limit: "1mb" }));
+app.get("/uploads/products/:filename", async (req, res, next) => {
+  try {
+    const image = await getStoredProductImage(req.params.filename);
+    if (!image) return next();
+
+    res.setHeader("Content-Type", image.contentType);
+    res.setHeader("Content-Length", image.data.byteLength);
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    if (req.method === "HEAD") return res.end();
+    return res.end(Buffer.from(image.data));
+  } catch (error) {
+    return next(error);
+  }
+});
 app.use("/uploads/products", express.static(productImageDirectory, {
   fallthrough: true,
   immutable: true,

@@ -5,11 +5,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { fileTypeFromBufferMock } = vi.hoisted(() => ({
   fileTypeFromBufferMock: vi.fn(),
 }));
+const { productImageFindUniqueMock, productImageUpdateManyMock } = vi.hoisted(() => ({
+  productImageFindUniqueMock: vi.fn(),
+  productImageUpdateManyMock: vi.fn(),
+}));
 
 vi.mock("file-type", () => ({ fileTypeFromBuffer: fileTypeFromBufferMock }));
+vi.mock("../src/config/database.js", () => ({
+  prisma: {
+    productImage: {
+      findUnique: productImageFindUniqueMock,
+      updateMany: productImageUpdateManyMock,
+    },
+  },
+}));
 
 const { productImageDirectory } = await import("../src/config/local-storage.js");
-const { deleteStoredProductImage, uploadProductImage } = await import("../src/services/media.service.js");
+const { runWithWorkerEnvironment } = await import("../src/config/worker-context.js");
+const {
+  deleteStoredProductImage,
+  getStoredProductImage,
+  uploadProductImage,
+} = await import("../src/services/media.service.js");
 
 const storedImages = new Set();
 
@@ -38,6 +55,32 @@ describe("local product image storage", () => {
 
     await deleteStoredProductImage(result.storagePath);
     storedImages.delete(result.storagePath);
+  });
+
+  it("stores, retrieves, and deletes Worker image bytes through PostgreSQL", async () => {
+    const buffer = Buffer.from("verified image bytes");
+    productImageFindUniqueMock.mockResolvedValue({ data: buffer, format: "jpg" });
+
+    const result = await runWithWorkerEnvironment({}, () => uploadProductImage(buffer));
+    const storedImage = await runWithWorkerEnvironment(
+      {},
+      () => getStoredProductImage(result.storagePath),
+    );
+    await runWithWorkerEnvironment(
+      {},
+      () => deleteStoredProductImage(result.storagePath),
+    );
+
+    expect(result.data).toEqual(buffer);
+    expect(productImageFindUniqueMock).toHaveBeenCalledWith({
+      where: { storagePath: result.storagePath },
+      select: { data: true, format: true },
+    });
+    expect(storedImage).toEqual({ data: buffer, contentType: "image/jpeg" });
+    expect(productImageUpdateManyMock).toHaveBeenCalledWith({
+      where: { storagePath: result.storagePath },
+      data: { data: null },
+    });
   });
 
   it("rejects content that is not an allowed image regardless of its filename or MIME header", async () => {

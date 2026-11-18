@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { env } from "../config/env.js";
@@ -20,7 +20,12 @@ import {
 const PASSWORD_COST = 12;
 const MAX_CHALLENGE_ATTEMPTS = 5;
 const refreshExpiry = () => new Date(Date.now() + env.REFRESH_SESSION_DAYS * 24 * 60 * 60 * 1000);
-const dummyPasswordHash = bcrypt.hash(createOpaqueToken(), PASSWORD_COST);
+let dummyPasswordHash;
+
+function getDummyPasswordHash() {
+  dummyPasswordHash ??= bcrypt.hash(createOpaqueToken(), PASSWORD_COST);
+  return dummyPasswordHash;
+}
 
 function requestMetadata(req) {
   return {
@@ -373,7 +378,7 @@ export async function login({ email, password, loginType, req }) {
   const roleAllowed = user && acceptedRoles.includes(user.role);
   const passwordMatches = await bcrypt.compare(
     password,
-    roleAllowed ? user.passwordHash : await dummyPasswordHash,
+    roleAllowed ? user.passwordHash : await getDummyPasswordHash(),
   );
 
   if (
